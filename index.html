@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Private Messenger</title>
     <link rel="stylesheet" href="clone.css">
-    <script src="https://messenger-clone-backend-1.onrender.com/socket.io/socket.io.js"></script>
+    <!-- Use CDN for Socket.IO client instead of relying on backend -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
     <div class="chat-container">
@@ -34,10 +35,30 @@
         </div>
     </div>
 
-   
     <script>
-        const socket = io('https://messenger-clone-backend-1.onrender.com');
+        // Initialize Socket.IO with explicit WebSocket transport and debugging
+        const socket = io('https://messenger-clone-backend-1.onrender.com', {
+            transports: ['websocket'], // Force WebSocket for reliability
+            secure: true,              // Ensure secure connection (wss://)
+            reconnection: true,        // Auto-reconnect if connection drops
+            reconnectionAttempts: 5    // Limit reconnection attempts
+        });
+
         let userId;
+
+        // Debug connection status
+        socket.on('connect', () => {
+            console.log('Connected to backend');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Disconnected:', reason);
+        });
+
         function joinChat() {
             userId = document.getElementById("userId").value;
             if (!userId) {
@@ -157,6 +178,7 @@
                             const img = document.createElement("img");
                             img.src = fileData.url;
                             img.style.maxWidth = "200px";
+                            img.alt = fileData.name;
                             fileElement.appendChild(img);
                         } else if (fileData.type.startsWith("video/")) {
                             const video = document.createElement("video");
