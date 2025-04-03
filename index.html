@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Epic ko Messenger</title>
     <link rel="stylesheet" href="clone.css">
-    <!-- Use CDN for Socket.IO client instead of relying on backend -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
@@ -20,11 +19,15 @@
 
         <hr>
 
+        <div id="userList" style="margin-bottom: 10px;"></div>
+
         <ul id="messages"></ul>
 
         <div class="input-section">
             <label>Recipient ID:</label>
             <input id="recipientId" type="text" placeholder="Recipient ID">
+            <button id="callButton" onclick="startCall()" disabled>📞 Call</button>
+            <button id="endCallButton" onclick="endCall()" style="display: none;">End Call</button>
             <div class="message-input-wrapper">
                 <button class="icon-button plus-button">+</button>
                 <label for="fileInput" class="icon-button camera-button">📷</label>
@@ -33,31 +36,33 @@
                 <button class="icon-button send-button" onclick="sendMessage()">➤</button>
             </div>
         </div>
+
+        <div id="videoContainer" style="display: none; margin-top: 20px;">
+            <video id="localVideo" autoplay muted style="width: 45%; margin-right: 10px;"></video>
+            <video id="remoteVideo" autoplay style="width: 45%;"></video>
+        </div>
     </div>
 
     <script>
-        // Initialize Socket.IO with explicit WebSocket transport and debugging
         const socket = io('https://messenger-clone-backend-1.onrender.com', {
-            transports: ['websocket'], // Force WebSocket for reliability
-            secure: true,              // Ensure secure connection (wss://)
-            reconnection: true,        // Auto-reconnect if connection drops
-            reconnectionAttempts: 5    // Limit reconnection attempts
+            transports: ['websocket'],
+            secure: true,
+            reconnection: true,
+            reconnectionAttempts: 5
         });
 
         let userId;
+        let peerConnection;
+        const configuration = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // Free STUN server
+        };
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        let localStream;
 
-        // Debug connection status
-        socket.on('connect', () => {
-            console.log('Connected to backend');
-        });
-
-        socket.on('connect_error', (error) => {
-            console.error('Connection error:', error);
-        });
-
-        socket.on('disconnect', (reason) => {
-            console.log('Disconnected:', reason);
-        });
+        socket.on('connect', () => console.log('Connected to backend'));
+        socket.on('connect_error', (error) => console.error('Connection error:', error));
+        socket.on('disconnect', (reason) => console.log('Disconnected:', reason));
 
         function joinChat() {
             userId = document.getElementById("userId").value;
@@ -68,20 +73,20 @@
             socket.emit("join", userId);
             alert("You joined as " + userId);
             document.querySelector(".join-section").style.display = "none";
+            document.getElementById("callButton").disabled = false;
         }
 
+        socket.on("userList", (users) => {
+            const userListDiv = document.getElementById("userList");
+            userListDiv.innerHTML = "Online Users: " + users.join(", ");
+        });
+
         socket.on("receiveMessage", ({ senderId, message, file }) => {
-            console.log("Received message:", { senderId, message, file });
             const li = document.createElement("li");
             li.classList.add("received");
-
             const messageBubble = document.createElement("div");
             messageBubble.classList.add("message-bubble");
-
-            if (message) {
-                messageBubble.textContent = message;
-            }
-
+            if (message) messageBubble.textContent = message;
             if (file && file.url) {
                 const fileElement = document.createElement("div");
                 if (file.type.startsWith("image/")) {
@@ -103,20 +108,15 @@
                 }
                 messageBubble.appendChild(fileElement);
             }
-
             const initial = document.createElement("span");
             initial.classList.add("initial");
             initial.textContent = senderId.charAt(0).toUpperCase();
-
             const timestamp = document.createElement("span");
             timestamp.classList.add("timestamp");
-            const now = new Date();
-            timestamp.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+            timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             li.appendChild(initial);
             li.appendChild(messageBubble);
             li.appendChild(timestamp);
-
             document.getElementById("messages").appendChild(li);
             scrollToBottom();
         });
@@ -127,19 +127,106 @@
             typingIndicator.textContent = `${senderId} is typing...`;
             typingIndicator.id = "typing-indicator";
             const existingIndicator = document.getElementById("typing-indicator");
-            if (existingIndicator) {
-                existingIndicator.remove();
-            }
+            if (existingIndicator) existingIndicator.remove();
             document.getElementById("messages").appendChild(typingIndicator);
             scrollToBottom();
         });
 
         socket.on("stopTyping", () => {
             const existingIndicator = document.getElementById("typing-indicator");
-            if (existingIndicator) {
-                existingIndicator.remove();
+            if (existingIndicator) existingIndicator.remove();
+        });
+
+        // Video call logic
+        async function startCall() {
+            const recipientId = document.getElementById("recipientId").value;
+            if (!recipientId) {
+                alert("Please enter a Recipient ID");
+                return;
+            }
+
+            peerConnection = new RTCPeerConnection(configuration);
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("iceCandidate", { targetId: recipientId, candidate: event.candidate });
+                }
+            };
+
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+            };
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit("callUser", { callerId: userId, receiverId: recipientId, offer });
+
+            document.getElementById("videoContainer").style.display = "flex";
+            document.getElementById("callButton").style.display = "none";
+            document.getElementById("endCallButton").style.display = "inline";
+        }
+
+        socket.on("incomingCall", async ({ callerId, offer }) => {
+            if (confirm(`${callerId} is calling you. Accept?`)) {
+                peerConnection = new RTCPeerConnection(configuration);
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit("iceCandidate", { targetId: callerId, candidate: event.candidate });
+                    }
+                };
+
+                peerConnection.ontrack = (event) => {
+                    remoteVideo.srcObject = event.streams[0];
+                };
+
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit("answerCall", { callerId, receiverId: userId, answer });
+
+                document.getElementById("videoContainer").style.display = "flex";
+                document.getElementById("callButton").style.display = "none";
+                document.getElementById("endCallButton").style.display = "inline";
             }
         });
+
+        socket.on("callAnswered", async ({ receiverId, answer }) => {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.on("iceCandidate", async ({ candidate }) => {
+            if (candidate) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        });
+
+        socket.on("callEnded", () => {
+            endCall();
+        });
+
+        function endCall() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            document.getElementById("videoContainer").style.display = "none";
+            document.getElementById("callButton").style.display = "inline";
+            document.getElementById("endCallButton").style.display = "none";
+            socket.emit("endCall", { targetId: document.getElementById("recipientId").value });
+        }
 
         function sendMessage() {
             const recipientId = document.getElementById("recipientId").value;
@@ -160,25 +247,19 @@
                         type: fileInput.type,
                         url: e.target.result
                     };
-                    console.log("Sending message with file:", { senderId: userId, receiverId: recipientId, message, file: fileData });
                     socket.emit("privateMessage", { senderId: userId, receiverId: recipientId, message, file: fileData });
 
                     const li = document.createElement("li");
                     li.classList.add("sent");
-
                     const messageBubble = document.createElement("div");
                     messageBubble.classList.add("message-bubble");
-                    if (message) {
-                        messageBubble.textContent = message;
-                    }
-
+                    if (message) messageBubble.textContent = message;
                     if (fileData) {
                         const fileElement = document.createElement("div");
                         if (fileData.type.startsWith("image/")) {
                             const img = document.createElement("img");
                             img.src = fileData.url;
                             img.style.maxWidth = "200px";
-                            img.alt = fileData.name;
                             fileElement.appendChild(img);
                         } else if (fileData.type.startsWith("video/")) {
                             const video = document.createElement("video");
@@ -194,20 +275,15 @@
                         }
                         messageBubble.appendChild(fileElement);
                     }
-
                     const initial = document.createElement("span");
                     initial.classList.add("initial");
                     initial.textContent = userId.charAt(0).toUpperCase();
-
                     const timestamp = document.createElement("span");
                     timestamp.classList.add("timestamp");
-                    const now = new Date();
-                    timestamp.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+                    timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     li.appendChild(messageBubble);
                     li.appendChild(initial);
                     li.appendChild(timestamp);
-
                     document.getElementById("messages").appendChild(li);
                     document.getElementById("messageInput").value = "";
                     document.getElementById("fileInput").value = "";
@@ -219,29 +295,22 @@
                     alert("Please enter a message or select a file");
                     return;
                 }
-                console.log("Sending message without file:", { senderId: userId, receiverId: recipientId, message });
                 socket.emit("privateMessage", { senderId: userId, receiverId: recipientId, message, file: null });
 
                 const li = document.createElement("li");
                 li.classList.add("sent");
-
                 const messageBubble = document.createElement("div");
                 messageBubble.classList.add("message-bubble");
                 messageBubble.textContent = message;
-
                 const initial = document.createElement("span");
                 initial.classList.add("initial");
                 initial.textContent = userId.charAt(0).toUpperCase();
-
                 const timestamp = document.createElement("span");
                 timestamp.classList.add("timestamp");
-                const now = new Date();
-                timestamp.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+                timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 li.appendChild(messageBubble);
                 li.appendChild(initial);
                 li.appendChild(timestamp);
-
                 document.getElementById("messages").appendChild(li);
                 document.getElementById("messageInput").value = "";
                 scrollToBottom();
@@ -251,7 +320,6 @@
         let typingTimeout;
         document.getElementById("messageInput").addEventListener("input", () => {
             socket.emit("typing", { senderId: userId, receiverId: document.getElementById("recipientId").value });
-
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
                 socket.emit("stopTyping", { senderId: userId, receiverId: document.getElementById("recipientId").value });

@@ -222,3 +222,19 @@ hr {
         font-size: 14px;
     }
 }
+#videoContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#localVideo, #remoteVideo {
+    border: 1px solid #ccc;
+    background: #000;
+}
+
+#callButton, #endCallButton {
+    margin-left: 10px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
