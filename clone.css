@@ -7,7 +7,7 @@
 }
 
 body {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); /* Modern gradient background */
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     color: #e0e0e0;
     min-height: 100vh;
     display: flex;
@@ -24,10 +24,10 @@ body {
     display: flex;
     flex-direction: column;
     padding: 20px;
-    background: rgba(30, 35, 50, 0.9); /* Semi-transparent dark background */
+    background: rgba(30, 35, 50, 0.9);
     border-radius: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px); /* Glassmorphism effect */
+    backdrop-filter: blur(10px);
 }
 
 /* Header */
@@ -137,7 +137,7 @@ hr {
 }
 
 #messages li.sent .message-bubble {
-    background: linear-gradient(135deg, #7c61ff 0%, #5a4bff 100%); /* Gradient for sent messages */
+    background: linear-gradient(135deg, #7c61ff 0%, #5a4bff 100%);
     color: #fff;
     border-radius: 20px 20px 0 20px;
     padding: 12px 18px;
@@ -162,7 +162,7 @@ hr {
 }
 
 #messages li.received .message-bubble {
-    background: linear-gradient(135deg, #3a3f50 0%, #4a4f60 100%); /* Gradient for received messages */
+    background: linear-gradient(135deg, #3a3f50 0%, #4a4f60 100%);
     color: #e0e0e0;
     border-radius: 20px 20px 20px 0;
     padding: 12px 18px;
@@ -323,6 +323,7 @@ hr {
     align-items: center;
     gap: 10px;
     margin-top: 20px;
+    flex-wrap: wrap; /* Allow wrapping for better mobile layout */
 }
 
 #localVideo, #remoteVideo {
@@ -335,7 +336,7 @@ hr {
 }
 
 #callButton, #endCallButton {
-    margin-left: 10px;
+    margin: 5px;
     padding: 8px 15px;
     cursor: pointer;
     background: linear-gradient(135deg, #7c61ff 0%, #5a4bff 100%);
@@ -369,8 +370,21 @@ hr {
         font-size: 14px;
     }
 
+    /* Increase video size on mobile */
+    #videoContainer {
+        flex-direction: column; /* Stack videos vertically on mobile */
+        align-items: center;
+        gap: 15px;
+    }
+
     #localVideo, #remoteVideo {
-        width: 120px;
-        height: 80px;
+        width: 100%; /* Full width of the container */
+        max-width: 300px; /* Maximum width to prevent overflow */
+        height: 200px; /* Increased height for better visibility */
+    }
+
+    #callButton, #endCallButton {
+        width: 120px; /* Fixed width for buttons to ensure they fit */
+        margin: 5px 0;
     }
 }
