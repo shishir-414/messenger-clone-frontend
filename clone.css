@@ -28,6 +28,7 @@ body {
     border-radius: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
+    position: relative;
 }
 
 /* Header */
@@ -54,7 +55,7 @@ h2::before {
     margin-bottom: 20px;
 }
 
-label {
+.join-section label {
     display: block;
     margin: 10px 0 5px;
     font-size: 14px;
@@ -63,7 +64,7 @@ label {
     letter-spacing: 0.3px;
 }
 
-input[type="text"] {
+.join-section input[type="text"] {
     padding: 12px;
     font-size: 15px;
     border: none;
@@ -76,9 +77,28 @@ input[type="text"] {
     box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-input[type="text"]:focus {
+.join-section input[type="text"]:focus {
     background: #32384a;
     box-shadow: 0 0 10px rgba(124, 97, 255, 0.3);
+}
+
+.join-section button {
+    margin-top: 10px;
+    padding: 8px 15px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #7c61ff 0%, #5a4bff 100%);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.join-section button:hover {
+    background: linear-gradient(135deg, #5a4bff 0%, #7c61ff 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 /* Horizontal Line */
@@ -87,6 +107,13 @@ hr {
     border-top: 1px solid #3a3f50;
     margin: 20px 0;
     opacity: 0.5;
+}
+
+/* User List */
+#userList {
+    font-size: 14px;
+    color: #a0a0a0;
+    margin-bottom: 10px;
 }
 
 /* Messages List */
@@ -232,6 +259,34 @@ hr {
     padding: 10px 0;
 }
 
+.input-section label {
+    display: block;
+    margin: 10px 0 5px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #a0a0a0;
+    letter-spacing: 0.3px;
+}
+
+.input-section input[type="text"] {
+    padding: 12px;
+    font-size: 15px;
+    border: none;
+    border-radius: 15px;
+    background: #2a2f40;
+    color: #e0e0e0;
+    width: 100%;
+    outline: none;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+    margin-bottom: 10px;
+}
+
+.input-section input[type="text"]:focus {
+    background: #32384a;
+    box-shadow: 0 0 10px rgba(124, 97, 255, 0.3);
+}
+
 .message-input-wrapper {
     display: flex;
     align-items: center;
@@ -323,15 +378,15 @@ hr {
     align-items: center;
     gap: 10px;
     margin-top: 20px;
-    flex-wrap: wrap; /* Allow wrapping for better mobile layout */
+    flex-wrap: wrap;
+    position: relative;
 }
 
 #localVideo, #remoteVideo {
     border: 2px solid #3a3f50;
     background: #000;
     border-radius: 10px;
-    width: 150px;
-    height: 100px;
+    width: 45%;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
 }
 
@@ -354,14 +409,25 @@ hr {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
-/* Responsive Adjustments */
+#callButton:disabled {
+    background: #555;
+    cursor: not-allowed;
+}
+
+#callButton:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Full-Screen Video Call in Mobile View */
 @media (max-width: 400px) {
     .chat-container {
         padding: 15px;
         border-radius: 0;
     }
 
-    input[type="text"],
+    .join-section input[type="text"],
+    .input-section input[type="text"],
     .icon-button {
         font-size: 14px;
     }
@@ -370,21 +436,134 @@ hr {
         font-size: 14px;
     }
 
-    /* Increase video size on mobile */
+    /* Default Video Container Adjustments for Mobile (Before Call) */
     #videoContainer {
-        flex-direction: column; /* Stack videos vertically on mobile */
+        flex-direction: column;
         align-items: center;
         gap: 15px;
     }
 
-    #localVideo, #remoteVideo {
-        width: 100%; /* Full width of the container */
-        max-width: 300px; /* Maximum width to prevent overflow */
-        height: 200px; /* Increased height for better visibility */
+    #localVideo {
+        width: 100%;
+        max-width: 300px;
+        height: 200px;
+        object-fit: cover; /* Ensure video fits without distortion */
+    }
+
+    #remoteVideo {
+        width: 100%;
+        max-width: 300px;
+        height: 200px;
+        object-fit: cover; /* Ensure video fits without distortion */
     }
 
     #callButton, #endCallButton {
-        width: 120px; /* Fixed width for buttons to ensure they fit */
+        width: 120px;
         margin: 5px 0;
+    }
+
+    /* Full-Screen Video Call When Video Container is Visible (During Call) */
+    #videoContainer[style*="display: flex"] {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        background: #000;
+        z-index: 1000;
+        padding-bottom: 80px; /* Add padding to ensure space for the End Call button */
+    }
+
+    #videoContainer[style*="display: flex"] ~ h2,
+    #videoContainer[style*="display: flex"] ~ .join-section,
+    #videoContainer[style*="display: flex"] ~ hr,
+    #videoContainer[style*="display: flex"] ~ #userList,
+    #videoContainer[style*="display: flex"] ~ #messages,
+    #videoContainer[style*="display: flex"] ~ .input-section {
+        display: none; /* Hide all other elements during the call */
+    }
+
+    #videoContainer[style*="display: flex"] #localVideo {
+        width: 100%;
+        height: 40%; /* Adjusted to fit both videos and leave space for the button */
+        max-width: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        object-fit: cover; /* Maintain aspect ratio */
+    }
+
+    #videoContainer[style*="display: flex"] #remoteVideo {
+        display: block; /* Ensure remote video is visible during full-screen call */
+        width: 100%;
+        height: 40%; /* Adjusted to fit both videos and leave space for the button */
+        max-width: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        object-fit: cover; /* Maintain aspect ratio */
+    }
+
+    #videoContainer[style*="display: flex"] #callButton {
+        display: none; /* Hide Start Call button during the call */
+    }
+
+    #videoContainer[style*="display: flex"] #endCallButton {
+        display: block !important; /* Ensure End Call button is visible */
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%); /* Center the button horizontally */
+        width: 150px;
+        padding: 12px 20px; /* Make the button larger for better touch interaction */
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%); /* Red gradient for End Call */
+        z-index: 1001; /* Ensure it appears above the videos */
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    #videoContainer[style*="display: flex"] #endCallButton:hover {
+        background: linear-gradient(135deg, #ff8787 0%, #ff6b6b 100%);
+        transform: translateX(-50%) translateY(-2px); /* Adjust hover effect to account for centering */
+    }
+
+    /* Additional End Call Icon in Full-Screen Mode (Moved to Bottom-Right) */
+    #videoContainer[style*="display: flex"]::after {
+        content: "📞"; /* Phone hang-up icon (you can replace with a custom SVG or emoji) */
+        position: fixed;
+        bottom: 20px; /* Moved to bottom */
+        right: 20px; /* Positioned on the right */
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #fff;
+        cursor: pointer;
+        z-index: 1002; /* Ensure it appears above everything */
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    #videoContainer[style*="display: flex"]::after:hover {
+        background: linear-gradient(135deg, #ff8787 0%, #ff6b6b 100%);
+        transform: scale(1.1);
+    }
+}
+
+/* Adjust for 4:3 Aspect Ratio (if needed) */
+@media (max-width: 400px) and (min-aspect-ratio: 4/3) {
+    #videoContainer[style*="display: flex"] #localVideo,
+    #videoContainer[style*="display: flex"] #remoteVideo {
+        height: 35%; /* Slightly reduce height to fit 4:3 aspect ratio better */
     }
 }
